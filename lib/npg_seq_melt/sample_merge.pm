@@ -238,7 +238,7 @@ Study accession number
 has 'study_accession_number' => (
      isa           => q[Str | Undef],  ## q[Maybe[Str]],
      is            => q[ro],
-     required      => 0, 
+     required      => 0,
      documentation => q[database study accession number],
     );
 
@@ -529,18 +529,6 @@ has '_use_rpt' => (
     default => sub { [] },
 );
 
-=head2 access_groups
-
-iRODS access group taken from cram file
-
-has 'access_groups' => (
-     isa           => q[Str],
-     is            => q[rw],
-     required      => 0,
-    );
-=cut
-
-
 =head2 _sample_merged_name
 
 Name for the merged cram file, representing the component rpt .
@@ -774,9 +762,6 @@ $VAR6 = {
         };
 
 =cut
-
-       ## Get cram ss group - TODO check if this can be more than 1 [can be but shouldn't be]
-       ## $self->access_groups($irods->get_object_groups($self->irods_cram()));
 
       my @irods_meta;
       eval{
@@ -1147,6 +1132,9 @@ my $path = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
     my $data =  $self->irods_data_to_add();
     my $path_prefix = $self->merge_dir().q[/outdata/];
 
+    my @permissions; ## TODO check study_id will always be the current one
+    push @permissions,  q{read ss_}.$data->{$self->_sample_merged_name().q[.cram]}->{study_id}, q{null public};
+
     # initialise mkdir flag
     $self->mkdir_flag(1);
 
@@ -1161,9 +1149,7 @@ my $path = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
              mkdir      => $self->mkdir_flag(),
             );
 
-        my @permissions; ## TODO check study_id will always be the current one
-        push @permissions, (map {qq{read ss_$_}} @{$data->{$file}->{study_id}}), q{null public};
-        $loader->chmod_permissions(\@permissions );
+        $loader->chmod_permissions(\@permissions);
 
         $loader->run();
 
