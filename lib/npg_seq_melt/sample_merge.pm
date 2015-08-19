@@ -25,6 +25,7 @@ use FindBin qw($Bin);
 use srpipe::runfolder;
 use npg_tracking::data::reference;
 use Digest::MD5 qw(md5);
+use npg_common::irods::Loader;
 
 with qw{
      MooseX::Getopt
@@ -237,7 +238,7 @@ Study accession number
 has 'study_accession_number' => (
      isa           => q[Str | Undef],  ## q[Maybe[Str]],
      is            => q[ro],
-     required      => 0, ##1,
+     required      => 0,
      documentation => q[database study accession number],
     );
 
@@ -286,8 +287,20 @@ sub _build__reference_genome_path{
     return;
 }
 
-=head2 instrument_type
 
+=head2 irods
+
+=cut
+
+has 'irods' => (
+     isa           => q[WTSI::NPG::iRODS],
+     is            => q[ro],
+     required      => 1,
+     documentation => q[irods WTSI::NPG::iRODS object],
+    );
+
+
+=head2 instrument_type
 
 =cut
 
@@ -362,6 +375,37 @@ has 'devel' => (
      documentation => q[],
     );
 
+
+=head2 mkdir_flag
+
+a flag to make the iRods directory
+
+=cut
+
+has 'mkdir_flag'   => (isa           => q[Bool],
+                       is            => q[rw],
+                       documentation => q[flag to make the iRods directory],
+                      );
+
+
+=head2 collection
+sub directory within irods to store results
+=cut
+has 'collection' => (isa           => q[Str],
+                     is            => q[rw],
+                     lazy_build    => 1,
+                     documentation => q[collection within irods to store results],
+                    );
+
+sub _build_collection {
+  my $self = shift;
+  my $collection = $DEFAULT_ROOT_DIR . $self->_sample_merged_name();
+  return $collection;
+
+}
+
+
+
 =head2 _runfolder_location 
 
   Records runfolder paths which got moved from outgoing back to analysis and also those already in analysis
@@ -392,7 +436,6 @@ has 'vtlib'   => (
 
 =head2 run_dir
 
-
 =cut
 
 has 'run_dir'  => (
@@ -417,6 +460,7 @@ has 'use_irods' => (
      required      => 0,
      documentation => q[force use of iRODS for input crams/seqchksums rather than staging],
     );
+
 
 has 'id_run' => (
     is            => 'rw',
@@ -484,19 +528,6 @@ has '_use_rpt' => (
     required      => 0,
     default => sub { [] },
 );
-
-=head2 access_groups
-
-iRODS access group taken from cram file
-
-=cut
-
-has 'access_groups' => (
-     isa           => q[Str],
-     is            => q[rw],
-     required      => 0,
-    );
-
 
 =head2 _sample_merged_name
 
@@ -731,9 +762,6 @@ $VAR6 = {
         };
 
 =cut
-
-       ## Get cram ss group - TODO check if this can be more than 1
-       $self->access_groups($irods->get_object_groups($self->irods_cram()));
 
       my @irods_meta;
       eval{
@@ -1069,23 +1097,6 @@ sub _destination_path {
 sub load_to_irods {
     my $self = shift;
 
-    ##my $IRODS_AREA = q[/seq/illumina/library_merge/].$self->_sample_merged_name();
-    my $IRODS_AREA = $DEFAULT_ROOT_DIR .$self->_sample_merged_name();
-
-    my $irods = $self->irods();
-
-    my $collection =  $irods->add_collection($IRODS_AREA);
-
-    ##remove public access
-       $irods->set_group_access('null','public',$collection);
-
-    ##set group access
-    my $group = $self->access_groups();
-
-    my @group_access = $irods->set_group_access('read',$group,$collection);
-
-    $self->log(qq[Added collection to iRODS: $collection]);
-
 =head1
 
 Files to load are those in $self->merge_dir().q[/outdata]   (not cram.md5, markdups_metrics)
@@ -1118,33 +1129,36 @@ my $path = $self->merge_dir().q[/outdata/].$self->_sample_merged_name();
            
 =cut
 
-my $data =  $self->irods_data_to_add();
-my $path_prefix = $self->merge_dir().q[/outdata/];
+    my $data =  $self->irods_data_to_add();
+    my $path_prefix = $self->merge_dir().q[/outdata/];
 
-foreach my $file (keys %{$data}){
-        my $irods_path  = $irods->add_object(qq[${path_prefix}$file],qq[$collection/$file]);
-        $self->log("Added irods object $irods_path");
+    my @permissions; ## TODO check study_id will always be the current one
+    push @permissions,  q{read ss_}.$data->{$self->_sample_merged_name().q[.cram]}->{study_id}, q{null public};
 
-        ## Other than for the cram (already present) calculate md5sum ##
-         my $merged_md5;
-        $merged_md5 = ($file =~ /cram$/msx) ? $data->{$file}{'md5'} : $irods->md5sum(qq[${path_prefix}$file]);
-        $irods->add_object_avu(qq{$collection/$file},'md5',$merged_md5);
-        my $ok = $irods->validate_checksum_metadata(qq{$collection/$file});
-        if (! $ok){ carp "${path_prefix}$file md5 does not match meta data md5\n" }
+    # initialise mkdir flag
+    $self->mkdir_flag(1);
 
-        foreach my $attrib (sort keys %{$data->{$file}}){
-                my $value = $data->{$file}{$attrib};
+    foreach my $file (keys %{$data}){
+        $self->log("Trying to load irods object ${path_prefix}$file to ". $self->collection());
 
-                next if ($attrib eq 'md5');
+        my $loader = npg_common::irods::Loader->new
+            (file       => qq[${path_prefix}$file],
+             irods      => $self->irods,
+             collection => $self->collection(),
+             meta_data  => $data->{$file},
+             mkdir      => $self->mkdir_flag(),
+            );
 
-      	        $irods->add_object_avu(qq{$collection/$file},
-                                     $attrib,
-                                     $value);
-                $self->log("Added attribute to $file $attrib $value");
-        }
-}
+        $loader->chmod_permissions(\@permissions);
 
-return;
+        $loader->run();
+
+        $self->log("Added irods object $file to ". $self->collection());
+        $self->mkdir_flag(0);  ## only needed the first time
+
+    }
+
+    return;
 }
 
 =head2 irods_data_to_add
@@ -1335,6 +1349,8 @@ __END__
 =item npg_common::irods::iRODSCapable
 
 =item npg_common::roles::log 
+
+=item npg_common::irods::Loader
 
 =back
 
