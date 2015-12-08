@@ -808,11 +808,17 @@ __END__
 
 =item MooseX::StrictConstructor
 
-=item WTSI::DNAP::Warehouse::Schema
-
 =item File::Basename
 
 =item POSIX
+
+=item WTSI::DNAP::Warehouse::Schema
+
+=item WTSI::DNAP::Warehouse::Schema::Query::LibraryDigest
+
+=item npg_tracking::glossary::rpt
+
+=item npg_seq_melt::merge::base
 
 =back
 
