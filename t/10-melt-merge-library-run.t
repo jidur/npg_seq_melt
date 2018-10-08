@@ -39,7 +39,7 @@ my $irods = WTSI::NPG::iRODS->new(environment          => \%ENV,
                                   logger               => $logger);
 {
 
-  my $tempdir = tempdir( CLEANUP => 1);
+  my $tempdir = tempdir( CLEANUP => 0);
 
   ## copy t/data/references/phix_unsnipped_short_no_N.fa to $tempdir/references/PhiX/Sanger-SNPs/all/fasta/phix_unsnipped_short_no_N.fa
   my $phix              = q[references/phix_unsnipped_short_no_N.fa];
@@ -240,6 +240,9 @@ sub expected_library_object {
      'lims_id'                 => 'SQSCP',
      'mkdir_flag'              => 0,
      'samtools_executable'     => 'samtools',
+     'picard_executable'       => '',
+     'java_re'                 => '/software/jdk1.8.0_74/bin/java',
+     'p4_merge_template'       => 'merge_aligned.json',
      'random_replicate'        => 0,
      'study_id'                => '3765',
      'vtlib'                   => '$(dirname $(readlink -f $(which vtfp.pl)))/../data/vtlib/',

@@ -30,7 +30,7 @@ extends qw/npg_seq_melt::merge npg_seq_melt::merge::base/;
 
 our $VERSION = '0';
 
-Readonly::Scalar my $P4_MERGE_TEMPLATE   => q[merge_aligned.json];
+
 Readonly::Scalar my $P4_COMMON_TEMPLATE  => q[alignment_common.json];
 Readonly::Scalar my $VIV_SCRIPT          => q[viv.pl];
 Readonly::Scalar my $VTFP_SCRIPT         => q[vtfp.pl];
@@ -353,6 +353,20 @@ has 'mkdir_flag'   => (isa           => q[Bool],
                        is            => q[rw],
                        documentation => q[boolean flag to make the iRods directory],
                       );
+
+=head2 p4_merge_template
+
+=cut
+
+has 'p4_merge_template' => (isa           => q[Str],
+                            is            => q[ro],
+                            lazy_build    => 1,
+                            documentation => q[Merge template to use. default merge_aligned.json],
+                            );
+sub _build_p4_merge_template {
+    my $self = shift;
+    return $self->picard_executable() ?  q[merge_aligned_picardMD.json] : q[merge_aligned.json];
+}
 
 =head2 collection
 
@@ -695,9 +709,9 @@ sub vtfp_job {
 
     my $vtlib = $self->vtlib();
     my $merge_sample_name = $self->sample_merged_name();
-    my $vtfp_log = join q[.],'vtfp',$merge_sample_name,$P4_MERGE_TEMPLATE;
+    my $vtfp_log = join q[.],'vtfp',$merge_sample_name,$self->p4_merge_template;
     $vtfp_log    =~ s/json$/LOG/xms;
-    my $sample_vtfp_template = join q[.],$merge_sample_name,$P4_MERGE_TEMPLATE;
+    my $sample_vtfp_template = join q[.],$merge_sample_name,$self->p4_merge_template;
     my($sample_seqchksum_input,$sample_cram_input);
 
     my $replicate_index = 0;
@@ -734,11 +748,17 @@ sub vtfp_job {
                      q(-keys samtools_executable -vals ) . $self->samtools_executable() . q( ).
                      q(-keys outdatadir -vals outdata ) .
                      q(-keys outirodsdir -vals  ) . $self->collection() . q( ).
-                    qq(-keys basic_pipeline_params_file -vals $vtlib/$P4_COMMON_TEMPLATE ) .
-                     q(-keys bmd_resetdupflag_val -vals 1 ) .
-                     q(-keys bmdtmp -vals merge_bmd ) .
-                    qq(-keys genome_reference_fasta -vals $ref_path ).
-                    qq($sample_cram_input $sample_seqchksum_input  $vtlib/$P4_MERGE_TEMPLATE );
+		     qq(-keys basic_pipeline_params_file -vals $vtlib/$P4_COMMON_TEMPLATE ) ;
+                   if ($self->picard_executable()){
+       $cmd .=      q(-keys picard_executable -vals ) . $self->picard_executable() . q( ).
+	            q(-keys java_re -vals ) . $self->java_re . q( );
+		    }
+                   else {
+       $cmd .=      q(-keys bmd_resetdupflag_val -vals 1 ) .
+	            q(-keys bmdtmp -vals merge_bmd ) ;
+                   }
+       $cmd .=      qq(-keys genome_reference_fasta -vals $ref_path ).
+                    qq($sample_cram_input $sample_seqchksum_input  $vtlib/) . $self->p4_merge_template;
 
     $self->log("\nVTFP_CMD $cmd\n");
 
@@ -754,9 +774,9 @@ sub viv_job {
 
    my $merge_sample_name = $self->sample_merged_name();
 
-    my $viv_log   = join q[.],'viv',$merge_sample_name,$P4_MERGE_TEMPLATE;
+    my $viv_log   = join q[.],'viv',$merge_sample_name,$self->p4_merge_template;
        $viv_log   =~ s/json$/LOG/xms;
-    my $viv_template = join q[.],$merge_sample_name,$P4_MERGE_TEMPLATE;
+    my $viv_template = join q[.],$merge_sample_name,$self->p4_merge_template;
     my $cmd  = qq($VIV_SCRIPT -v 3 -x -s -o $viv_log ./$viv_template);
     my $job_name = 'viv_merge-%J';
 

@@ -866,6 +866,10 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
   push @command, q[--samtools_executable ], $self->samtools_executable(), q[ ];
   push @command, q[--run_dir ], $self->run_dir(), q[ ];
 
+  if ($self->picard_executable){
+     push @command, q[--picard_executable ], $self->picard_executable(), q[ ];
+  }
+
   if ($self->local) {
     push @command, q[--local];
   }

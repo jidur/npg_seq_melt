@@ -166,6 +166,31 @@ has 'samtools_executable' => (
     default       => q[samtools],
 );
 
+=head2 java_re
+
+Allow path to different version of java to be provided
+
+=cut
+
+has 'java_re' => (
+    isa           => q[Str],
+    is            => q[ro],
+    documentation => q[Optionally provide path to different version of java],
+    default       => q[/software/jdk1.8.0_74/bin/java],
+);
+
+=head2 picard_executable
+
+=cut
+
+has 'picard_executable' => (
+    isa           => q[Str],
+    is            => q[ro],
+    documentation => q[picard.jar file path],
+    default       => q[],
+);
+
+
 
 =head2
 
