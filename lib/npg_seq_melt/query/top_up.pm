@@ -188,12 +188,12 @@ sub run_query {
           }
     }
 
-
+ 
 foreach my $single (keys %{$single_component_dp}){
     ##skip any where the id_run also exists in a multi-component data product (i.e. it is not a top-up run) 
     next if exists $multi_component_run_id{ $single_component_dp->{$single}{id_run} };
 
-    $top_up_run_library{ $single_component_dp->{$single}{library} } .= $single_component_dp->{$single}{rpt_list} . q[;];
+   $top_up_run_library{ $single_component_dp->{$single}{library} } .= $single_component_dp->{$single}{rpt_list} . q[;];
 }
 
     my $sample_info = {};
@@ -208,8 +208,8 @@ foreach my $comp (sort keys %{$input_data_product}){
 
 	         my $rpt_list = $input_data_product->{$comp}{rpt_list};
               $self->make_merge_dir($rpt_list);
-           push @{ $sample_info->{$sid}{rpt_list} }, $rpt_list;
-	         push @{ $sample_info->{$sid}{orig_cram} }, join q[/],$self->_cache_name(),$self->_cram_filename();
+              push @{ $sample_info->{$sid}{rpt_list} }, $rpt_list;
+	      push @{ $sample_info->{$sid}{orig_cram} }, join q[/],$self->_cache_name(),$self->_cram_filename();
 
            my $extended_rpt_list;
            my $top_up_rpt =  $top_up_run_library{ $input_data_product->{$comp}{library} };
@@ -223,7 +223,7 @@ foreach my $comp (sort keys %{$input_data_product}){
             my $top_up_cram = join q[/],$self->_cache_name(),$self->_cram_filename();
             if ($self->dry_run){ $self->log("Top-up cram $top_up_cram") }
             push @{ $sample_info->{$sid}{top_up_cram} },$top_up_cram;
-	}
+       }
 }
     $self->merge_product_by_sample($sample_info);
     return;
@@ -274,9 +274,7 @@ sub make_merge_dir {
     my $rpt = shift;
     ### uses config file product_release.yml
     my $p = npg_pipeline::product->new(rpt_list => $rpt, lims => st::api::lims->new(rpt_list => $rpt));
-
     my $filename = $p->file_name(ext =>'cram');
-
     $self->_cache_name($self->merge_component_cache_dir($p));
     $self->_cram_filename($filename);
     $self->_product($p);
