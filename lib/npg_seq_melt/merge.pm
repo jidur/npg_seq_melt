@@ -188,6 +188,18 @@ has 'minimum_component_count' => ( isa           =>  'Int',
 );
 
 
+=head2 
+
+new_irods_path   (temp)
+
+=cut
+
+has 'new_irods_path' => ( isa           => q[Str],
+                          is            => q[ro],
+                          documentation => q[For paths such as /seq/illumina/runs/29/29226/lane1/plex28],
+);
+
+
 =head2 standard_paths
 
 =cut
@@ -202,9 +214,21 @@ sub standard_paths {
     }
 
     my $rpt_list = join q[:],$c->id_run,$c->position,$c->tag_index;
-    my $filename = npg_pipeline::product->new(rpt_list => $rpt_list)->file_name(ext =>'cram');
+    #my $filename = npg_pipeline::product->new(rpt_list => $rpt_list)->file_name(ext =>'cram');
+    my $p = npg_pipeline::product->new(rpt_list => $rpt_list);
+    my $filename = $p->file_name(ext =>'cram');
     my $path     = join q[/],$self->irods_root, $c->id_run, $filename;
     my $paths    = {'irods_cram' => $path};
+
+    if ($self->new_irods_path){
+        my $subpath = $p->dir_path(); #e.g. lane6/plex147 for single rpt 
+        my $run = $c->id_run;
+        my $index = substr $run,0,2;
+           $path  = join q[/],$self->irods_root,q[illumina/runs],$index,$run,$subpath,$filename;
+           $self->info(join q[ ],q[irods_cram],$path);
+           $paths    = {'irods_cram' => $path};
+    }
+
 
     if ($self->crams_in_s3){
       my $rpt = $filename; $rpt =~ s/[.]cram//smx;

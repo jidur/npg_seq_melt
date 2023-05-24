@@ -45,6 +45,17 @@ npg_seq_melt::merge::generator
 
 =head1 SUBROUTINES/METHODS
 
+
+=head2 new_irods_path
+
+=cut
+
+has 'new_irods_path'  =>  ( is            => 'ro',
+                            isa            => q{Bool},
+                       documentation =>
+ 'temporary - to use alternative irods data structure for input crams',
+);
+
 =head2 merge_cmd
 
 Merge command.
@@ -946,7 +957,8 @@ sub _get_reference_genome_path{
     my ($self, $c) = @_;
 
     if (!$c) {
-        $self->logcroak('Composition attribute required');
+        #$self->logcroak('Composition attribute required');
+        croak('Composition attribute required');
     }
      $self->info(join q[ ], 'IN reference_genome_path', $c->freeze2rpt());
 
@@ -1119,7 +1131,7 @@ sub _lsf_job_submit {
   my $out = join q[/], $self->log_dir, $job_name . q[_];
   my $id; # catch id;
 
-  my $LSF_RESOURCES  = q(  -M6000 -R 'select[mem>6000] rusage[mem=6000,) . $self->token_name .q(=)
+  my $LSF_RESOURCES  = q(  -G prod_users -q srpipeline -M6000 -R 'select[mem>6000] rusage[mem=6000,) . $self->token_name .q(=)
                      . $self->tokens_per_job() . q(] span[hosts=1] order[!-slots:-maxslots]' -n )
                      . $self->lsf_num_processors();
   if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }
