@@ -236,7 +236,6 @@ sub standard_paths {
       my $s3_path  = join q[/],$self->run_dir(),q[s3_in],$rpt,$filename;
           $paths->{'s3_cram'} = $s3_path;
      };
-
     return $paths;
 
 }
@@ -287,6 +286,7 @@ sub can_run {
 
     my $self      = shift;
     my $query     = shift;
+
 
     if (!$query->{'irods_cram'} || ! $self->irods()){
         croak 'Not all required attributes defined';

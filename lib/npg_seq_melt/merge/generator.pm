@@ -931,6 +931,10 @@ sub _command { ## no critic (Subroutines::ProhibitManyArgs)
       push @command, q[--local_cram ];
   }
 
+  if ($self->new_irods_path()){
+      push @command, q[--new_irods_path];
+  }
+
   return {'rpt_list'  => $rpt_list,
           'command'   => join(q[ ], @command),
           'merge_obj' => $obj,
@@ -1131,7 +1135,7 @@ sub _lsf_job_submit {
   my $out = join q[/], $self->log_dir, $job_name . q[_];
   my $id; # catch id;
 
-  my $LSF_RESOURCES  = q(  -G prod_users -q srpipeline -M6000 -R 'select[mem>6000] rusage[mem=6000,) . $self->token_name .q(=)
+  my $LSF_RESOURCES  = q(  -G prod_users -q srpipeline -M64000 -R 'select[mem>64000] rusage[mem=64000,) . $self->token_name .q(=)
                      . $self->tokens_per_job() . q(] span[hosts=1] order[!-slots:-maxslots]' -n )
                      . $self->lsf_num_processors();
   if ($self->lsf_runtime_limit()){ $LSF_RESOURCES .= q( -W ) . $self->lsf_runtime_limit() }

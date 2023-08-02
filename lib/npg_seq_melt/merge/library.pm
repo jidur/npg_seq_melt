@@ -64,6 +64,17 @@ Commands generated from npg_seq_melt::merge::generator
 
 =head1 SUBROUTINES/METHODS
 
+=head2 
+
+new_irods_path   (temp)
+
+=cut
+
+has 'new_irods_path' => ( isa           => q[Bool],
+                          is            => q[ro],
+                          documentation => q[For paths such as /seq/illumina/runs/29/29226/lane1/plex28],
+);
+
 =head2 sample_merged_name
 
 Name for the merged cram file, representing the component rpt.
@@ -468,7 +479,6 @@ sub _build__paths2merge {
 
     my $factory = npg_tracking::glossary::composition::factory->new();
     foreach my $c ($self->composition->components_list()) {
-
         my $paths = $self->_source_cram($c);
 
         eval {
@@ -611,6 +621,7 @@ sub do_merge {
 
     chdir $original_seqchksum_dir or croak qq[cannot chdir $original_seqchksum_dir : $OS_ERROR];
     return 0 if !$self->get_seqchksum_files();
+    return 0 if !$self->get_cram_files();
 
     chdir $subdir or croak qq[cannot chdir $subdir: $OS_ERROR];
 
@@ -680,6 +691,22 @@ sub get_seqchksum_files {
     return 1;
 }
 
+
+=head2 get_cram_files
+
+=cut
+
+sub get_cram_files {
+    my $self = shift;
+    foreach my $cram (@{$self->_paths2merge}){
+        next if -e join q{/},$self->original_seqchksum_dir(),basename($cram);
+
+        return 0 if !$self->run_cmd(qq[iget -K $cram]);
+    }
+    return 1;
+}
+
+
 =head2 vtfp_job
 
 vtfp.pl -l vtfp.13149764.HiSeqX.merge_aligned.LOG -o 13149764.HiSeqX.merge_aligned.json -keys library -vals 13149764.HiSeqX -keys cfgdatadir -vals $VTLIB_PATH -keys samtools_executable -vals samtools1 -keys outdatadir -vals outdata -keys basic_pipeline_params_file -vals $VTLIB_PATH/alignment_common.json -keys bmd_resetdupflag_val -vals 1 -keys incrams -vals irods:/seq/15733/15733_3.cram -keys incrams -vals irods:/seq/15972/15972_6.cram  -keys incrams_seqchksum -vals /lustre/scratch110/xx/input/15733_3.seqchksum -keys incrams_seqchksum -vals /lustre/scratch110/xx/input/15972_6.seqchksum   $VTLIB_PATH/merge_aligned.json 
@@ -718,7 +745,14 @@ sub vtfp_job {
             $cram =~ s/^/irods:\//xms;
         }
 
-        $sample_cram_input      .= qq(-keys incrams -vals $cram );
+        if ($self->local_cram()){
+            my(@path) = File::Spec->splitpath($cram);
+            my $local_cram = $self->original_seqchksum_dir().q[/].$path[-1];
+            $sample_cram_input      .= qq(-keys incrams -vals $local_cram );
+        }
+        else {
+            $sample_cram_input      .= qq(-keys incrams -vals $cram );
+        }
         $sample_seqchksum_input .= qq(-keys incrams_seqchksum -vals $sqchk );
     }
 
